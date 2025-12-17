@@ -1,51 +1,47 @@
-import fetch from "node-fetch";
-import nodemailer from "nodemailer";
-import fs from "fs";
-
-const config = JSON.parse(fs.readFileSync("config.json", "utf8"));
+const fetch = require("node-fetch");
+const nodemailer = require("nodemailer");
 
 const API = "https://stuttgart.konsentas.de/api/brick_ota_termin_getFirstAvailableTimeslot";
-const TOKEN = config.TOKEN;
+
+const TOKEN = process.env.BEARER_TOKEN;
 
 async function checkAndNotify() {
   const res = await fetch(API, {
     method: "GET",
     headers: {
-      "Authorization": TOKEN,
-      "Accept": "application/json"
-    }
+      Authorization: TOKEN,
+      Accept: "application/json",
+    },
   });
 
   const json = await res.json();
   console.log("Response:", json);
 
-  if (json.data?.termin) {
+  if (json?.data?.termin !== null) {
     await sendEmail(json);
-    console.log("Email gönderildi!");
+    console.log("✅ Email gönderildi");
   } else {
-    console.log("Termin null, email gönderilmedi.");
+    console.log("⏳ Termin yok");
   }
 }
 
 async function sendEmail(json) {
   const transporter = nodemailer.createTransport({
-    host: config.EMAIL.SMTP_HOST,
-    port: config.EMAIL.SMTP_PORT,
+    host: process.env.SMTP_HOST,
+    port: Number(process.env.SMTP_PORT),
     secure: false,
     auth: {
-      user: config.EMAIL.USER,
-      pass: config.EMAIL.PASS
-    }
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASS,
+    },
   });
 
-  const info = await transporter.sendMail({
-    from: `"Termin Bot" <${config.EMAIL.USER}>`,
-    to: config.EMAIL.TO,
-    subject: "Yeni Termin Bulundu!",
-    text: JSON.stringify(json, null, 2)
+  await transporter.sendMail({
+    from: `"Termin Bot" <${process.env.SMTP_USER}>`,
+    to: process.env.EMAIL_TO,
+    subject: "🎉 Yeni Termin Bulundu!",
+    text: JSON.stringify(json, null, 2),
   });
-
-  console.log("Message sent:", info.messageId);
 }
 
 checkAndNotify().catch(console.error);
