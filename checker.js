@@ -18,7 +18,7 @@ async function getDynamicToken() {
   });
 
   const json = await res.json();
-  console.log('Response: ' + JSON.serialize(json));
+  console.log('Response: ' + JSON.stringify(json));
   if (!json?.data?.ota_jwt) {
     throw new Error("❌ ota_jwt alınamadı");
   }
