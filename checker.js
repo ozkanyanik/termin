@@ -30,7 +30,7 @@ async function checkTermin(token) {
   const res = await fetch(TERMIN_URL, {
     method: "GET",
     headers: {
-      Authorization: token,
+      Authorization: 'Bearer ' + token,
       Accept: "application/json",
     },
   });
