@@ -33,38 +33,4 @@ async function sendEmail(data) {
 
   const page = await context.newPage();
 
-  console.log("🌐 Booking sayfası açılıyor...");
-  await page.goto(BOOKING_URL, { waitUntil: "domcontentloaded" });
-
-  console.log("⏳ Tarayıcının termin isteği bekleniyor...");
-
-  // 🔥 ASIL KRİTİK NOKTA
-  const response = await page.waitForResponse(
-    (resp) =>
-      resp.url().includes("brick_ota_termin_getFirstAvailableTimeslot") &&
-      resp.status() === 200,
-    { timeout: 30000 }
-  );
-
-  const json = await response.json();
-  console.log("📡 Yakalanan response:", json);
-
-  const terminVar =
-    json?.code === 3 &&
-    json?.data &&
-    json.data.termin !== null;
-
-  if (terminVar) {
-    console.log("✅ GERÇEK termin bulundu");
-    await sendEmail(json);
-  } else {
-    console.log(
-      `⏳ Termin yok | code=${json?.code} msg=${json?.msg}`
-    );
-  }
-
-  await browser.close();
-})().catch((err) => {
-  console.error("🔥 HATA:", err.message);
-  process.exit(1);
-});
+  console.log("🌐 Bookin
