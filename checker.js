@@ -1,31 +1,44 @@
 const fetch = require("node-fetch");
 const nodemailer = require("nodemailer");
 
-const API = "https://stuttgart.konsentas.de/api/brick_ota_termin_getFirstAvailableTimeslot";
+// 1️⃣ TOKEN ENDPOINT
+const TOKEN_URL =
+  "https://stuttgart.konsentas.de/api/getOtaStartUp/?signupform_id=3&userauth=&queryParameter%5Bsignup_new%5D=1&r=";
 
-const TOKEN = process.env.BEARER_TOKEN;
+// 2️⃣ TERMIN ENDPOINT
+const TERMIN_URL =
+  "https://stuttgart.konsentas.de/api/brick_ota_termin_getFirstAvailableTimeslot";
 
-async function checkAndNotify() {
-  const res = await fetch(API, {
+async function getDynamicToken() {
+  const res = await fetch(TOKEN_URL, {
     method: "GET",
     headers: {
-      Authorization: TOKEN,
       Accept: "application/json",
     },
   });
 
   const json = await res.json();
-  console.log("Response:", json);
 
-  if (json?.data?.termin !== null) {
-    await sendEmail(json);
-    console.log("✅ Email gönderildi");
-  } else {
-    console.log("⏳ Termin yok");
+  if (!json?.data?.ota_jwt) {
+    throw new Error("❌ ota_jwt alınamadı");
   }
+
+  return `Bearer ${json.data.ota_jwt}`;
 }
 
-async function sendEmail(json) {
+async function checkTermin(token) {
+  const res = await fetch(TERMIN_URL, {
+    method: "GET",
+    headers: {
+      Authorization: token,
+      Accept: "application/json",
+    },
+  });
+
+  return res.json();
+}
+
+async function sendEmail(data) {
   const transporter = nodemailer.createTransport({
     host: process.env.SMTP_HOST,
     port: Number(process.env.SMTP_PORT),
@@ -39,9 +52,29 @@ async function sendEmail(json) {
   await transporter.sendMail({
     from: `"Termin Bot" <${process.env.SMTP_USER}>`,
     to: process.env.EMAIL_TO,
-    subject: "🎉 Yeni Termin Bulundu!",
-    text: JSON.stringify(json, null, 2),
+    subject: "🎉 Stuttgart Führerscheinstelle – Yeni Termin!",
+    text: JSON.stringify(data, null, 2),
   });
 }
 
-checkAndNotify().catch(console.error);
+async function main() {
+  console.log("🔐 Token alınıyor...");
+  const token = await getDynamicToken();
+
+  console.log("📅 Termin kontrol ediliyor...");
+  const result = await checkTermin(token);
+
+  console.log("Response:", result);
+
+  if (result?.data?.termin !== null) {
+    console.log("✅ Termin bulundu, email gönderiliyor");
+    await sendEmail(result);
+  } else {
+    console.log("⏳ Termin yok");
+  }
+}
+
+main().catch((err) => {
+  console.error("🔥 HATA:", err.message);
+  process.exit(1);
+});
