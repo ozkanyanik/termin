@@ -4,12 +4,6 @@ const nodemailer = require("nodemailer");
 const BOOKING_URL =
   "https://stuttgart.konsentas.de/form/3/?signup_new=1";
 
-const STARTUP_URL =
-  "https://stuttgart.konsentas.de/api/getOtaStartUp/?signupform_id=3&userauth=&queryParameter%5Bsignup_new%5D=1&r=";
-
-const TERMIN_URL =
-  "https://stuttgart.konsentas.de/api/brick_ota_termin_getFirstAvailableTimeslot";
-
 async function sendEmail(data) {
   const transporter = nodemailer.createTransport({
     host: process.env.SMTP_HOST,
@@ -24,7 +18,7 @@ async function sendEmail(data) {
   await transporter.sendMail({
     from: `"Termin Bot" <${process.env.SMTP_USER}>`,
     to: process.env.EMAIL_TO,
-    subject: "🎉 Stuttgart Führerscheinstelle – Termin Var!",
+    subject: "🎉 Stuttgart – Yeni Termin Bulundu!",
     text: JSON.stringify(data, null, 2),
   });
 }
@@ -39,50 +33,38 @@ async function sendEmail(data) {
 
   const page = await context.newPage();
 
-  // 1️⃣ GERÇEK booking sayfası
-  console.log("🌐 Booking sayfası açılıyor:", BOOKING_URL);
+  console.log("🌐 Booking sayfası açılıyor...");
   await page.goto(BOOKING_URL, { waitUntil: "domcontentloaded" });
-  await page.waitForLoadState("networkidle").catch(() => {});
 
-  // 2️⃣ Token
-  console.log("🔐 Token alınıyor...");
-  const tokenRes = await context.request.get(STARTUP_URL);
-  const tokenJson = await tokenRes.json();
+  console.log("⏳ Tarayıcının termin isteği bekleniyor...");
 
-  const jwt = tokenJson?.data?.ota_jwt;
-  if (!jwt) {
-    throw new Error("ota_jwt alınamadı");
-  }
-  const bearer = `Bearer ${jwt}`;
+  // 🔥 ASIL KRİTİK NOKTA
+  const response = await page.waitForResponse(
+    (resp) =>
+      resp.url().includes("brick_ota_termin_getFirstAvailableTimeslot") &&
+      resp.status() === 200,
+    { timeout: 30000 }
+  );
 
-  // 3️⃣ Termin
-  console.log("📅 Termin kontrol ediliyor...");
-  const terminRes = await context.request.get(TERMIN_URL, {
-    headers: {
-      Authorization: bearer,
-      Accept: "application/json",
-    },
-  });
-  const terminJson = await terminRes.json();
-  console.log("Response:", terminJson);
+  const json = await response.json();
+  console.log("📡 Yakalanan response:", json);
 
-  // 🚫 233 → asla email
   const terminVar =
-    terminJson?.code === 3 &&
-    terminJson?.data &&
-    terminJson.data.termin !== null;
+    json?.code === 3 &&
+    json?.data &&
+    json.data.termin !== null;
 
   if (terminVar) {
     console.log("✅ GERÇEK termin bulundu");
-    await sendEmail(terminJson);
+    await sendEmail(json);
   } else {
     console.log(
-      `⏳ Termin yok | code=${terminJson?.code} msg=${terminJson?.msg}`
+      `⏳ Termin yok | code=${json?.code} msg=${json?.msg}`
     );
   }
 
   await browser.close();
 })().catch((err) => {
-  console.error("🔥 HATA:", err);
+  console.error("🔥 HATA:", err.message);
   process.exit(1);
 });
