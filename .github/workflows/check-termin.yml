@@ -2,8 +2,8 @@ name: Check Termin
 
 on:
   schedule:
-    - cron: "*/15 * * * *"  # her 15 dakikada bir
-  workflow_dispatch:    # manuel çalıştırma
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
 
 jobs:
   check:
@@ -12,18 +12,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: "18"
 
-      - name: Install Dependencies
-        run: npm install node-fetch nodemailer
+      - name: Install dependencies
+        run: npm install
 
-      - name: Run Checker
+      - name: Install Playwright browsers
+        run: npx playwright install chromium
+
+      - name: Run checker
         run: node checker.js
         env:
-          TOKEN: ${{ secrets.BEARER_TOKEN }}
           SMTP_HOST: ${{ secrets.SMTP_HOST }}
           SMTP_PORT: ${{ secrets.SMTP_PORT }}
           SMTP_USER: ${{ secrets.SMTP_USER }}
