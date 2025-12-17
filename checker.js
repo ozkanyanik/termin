@@ -27,6 +27,7 @@ async function getDynamicToken() {
 }
 
 async function checkTermin(token) {
+    console.log("🔐 Token: " + token);
   const res = await fetch(TERMIN_URL, {
     method: "GET",
     headers: {
