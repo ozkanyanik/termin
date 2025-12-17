@@ -61,7 +61,7 @@ async function sendEmail(data) {
 async function main() {
   console.log("🔐 Token alınıyor...");
   const token = await getDynamicToken();
-
+  console.log(token);
   console.log("📅 Termin kontrol ediliyor...");
   const result = await checkTermin(token);
 
