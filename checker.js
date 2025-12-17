@@ -1,43 +1,11 @@
-const fetch = require("node-fetch");
+const { chromium } = require("playwright");
 const nodemailer = require("nodemailer");
 
-// 1️⃣ TOKEN ENDPOINT
-const TOKEN_URL =
+const STARTUP_URL =
   "https://stuttgart.konsentas.de/api/getOtaStartUp/?signupform_id=3&userauth=&queryParameter%5Bsignup_new%5D=1&r=";
 
-// 2️⃣ TERMIN ENDPOINT
 const TERMIN_URL =
   "https://stuttgart.konsentas.de/api/brick_ota_termin_getFirstAvailableTimeslot";
-
-async function getDynamicToken() {
-  const res = await fetch(TOKEN_URL, {
-    method: "GET",
-    headers: {
-      Accept: "application/json",
-    },
-  });
-
-  const json = await res.json();
-  console.log('Response: ' + JSON.stringify(json));
-  if (!json?.data?.ota_jwt) {
-    throw new Error("❌ ota_jwt alınamadı");
-  }
-
-  return `Bearer ${json.data.ota_jwt}`;
-}
-
-async function checkTermin(token) {
-    console.log("🔐 Token: " + token);
-  const res = await fetch(TERMIN_URL, {
-    method: "GET",
-    headers: {
-      Authorization: token,
-      Accept: "application/json",
-    },
-  });
-
-  return res.json();
-}
 
 async function sendEmail(data) {
   const transporter = nodemailer.createTransport({
@@ -53,29 +21,50 @@ async function sendEmail(data) {
   await transporter.sendMail({
     from: `"Termin Bot" <${process.env.SMTP_USER}>`,
     to: process.env.EMAIL_TO,
-    subject: "🎉 Stuttgart Führerscheinstelle – Yeni Termin!",
+    subject: "🎉 Stuttgart Führerscheinstelle – Termin Var!",
     text: JSON.stringify(data, null, 2),
   });
 }
 
-async function main() {
+(async () => {
+  const browser = await chromium.launch({ headless: true });
+  const context = await browser.newContext({
+    userAgent:
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120",
+  });
+
+  const page = await context.newPage();
+
   console.log("🔐 Token alınıyor...");
-  const token = await getDynamicToken();
-  console.log(token);
+  const tokenResponse = await page.request.get(STARTUP_URL);
+  const tokenJson = await tokenResponse.json();
+
+  if (!tokenJson?.data?.ota_jwt) {
+    throw new Error("ota_jwt alınamadı");
+  }
+
+  const bearer = `Bearer ${tokenJson.data.ota_jwt}`;
+
   console.log("📅 Termin kontrol ediliyor...");
-  const result = await checkTermin(token);
+  const terminResponse = await page.request.get(TERMIN_URL, {
+    headers: {
+      Authorization: bearer,
+      Accept: "application/json",
+    },
+  });
 
-  console.log("Response:", result);
+  const terminJson = await terminResponse.json();
+  console.log("Response:", terminJson);
 
-  if (result?.data?.termin !== null) {
+  if (terminJson?.data?.termin !== null) {
     console.log("✅ Termin bulundu, email gönderiliyor");
-    await sendEmail(result);
+    await sendEmail(terminJson);
   } else {
     console.log("⏳ Termin yok");
   }
-}
 
-main().catch((err) => {
+  await browser.close();
+})().catch((err) => {
   console.error("🔥 HATA:", err.message);
   process.exit(1);
 });
