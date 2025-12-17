@@ -1,0 +1,31 @@
+name: Check Termin
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"  # her 15 dakikada bir
+  workflow_dispatch:    # manuel çalıştırma
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+
+      - name: Install Dependencies
+        run: npm install node-fetch nodemailer
+
+      - name: Run Checker
+        run: node checker.js
+        env:
+          TOKEN: ${{ secrets.BEARER_TOKEN }}
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          EMAIL_TO: ${{ secrets.EMAIL_TO }}
