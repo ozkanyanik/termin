@@ -18,7 +18,7 @@ async function getDynamicToken() {
   });
 
   const json = await res.json();
-
+  console.log('Response: ' + json);
   if (!json?.data?.ota_jwt) {
     throw new Error("❌ ota_jwt alınamadı");
   }
@@ -31,7 +31,7 @@ async function checkTermin(token) {
   const res = await fetch(TERMIN_URL, {
     method: "GET",
     headers: {
-      Authorization: 'Bearer ' + token,
+      Authorization: token,
       Accept: "application/json",
     },
   });
