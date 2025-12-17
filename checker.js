@@ -56,12 +56,14 @@ async function sendEmail(data) {
   const terminJson = await terminResponse.json();
   console.log("Response:", terminJson);
 
-  if (terminJson?.data?.termin !== null) {
-    console.log("✅ Termin bulundu, email gönderiliyor");
-    await sendEmail(terminJson);
-  } else {
-    console.log("⏳ Termin yok");
-  }
+  if (terminJson?.code === 3 && terminJson?.data?.termin !== null) {
+  console.log("✅ GERÇEK termin bulundu");
+  // await sendEmail(terminJson);
+} else {
+  console.log(
+    `⏳ Termin yok | code=${terminJson.code} msg=${terminJson.msg}`
+  );
+}
 
   await browser.close();
 })().catch((err) => {
