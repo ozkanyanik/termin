@@ -1,6 +1,9 @@
 const { chromium } = require("playwright");
 const nodemailer = require("nodemailer");
 
+const BOOKING_URL =
+  "https://stuttgart.konsentas.de/form/3/?signup_new=1";
+
 const STARTUP_URL =
   "https://stuttgart.konsentas.de/api/getOtaStartUp/?signupform_id=3&userauth=&queryParameter%5Bsignup_new%5D=1&r=";
 
@@ -30,43 +33,56 @@ async function sendEmail(data) {
   const browser = await chromium.launch({ headless: true });
   const context = await browser.newContext({
     userAgent:
-      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120",
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120 Safari/537.36",
+    locale: "de-DE",
   });
 
   const page = await context.newPage();
 
-  console.log("🔐 Token alınıyor...");
-  const tokenResponse = await page.request.get(STARTUP_URL);
-  const tokenJson = await tokenResponse.json();
+  // 1️⃣ GERÇEK booking sayfası
+  console.log("🌐 Booking sayfası açılıyor:", BOOKING_URL);
+  await page.goto(BOOKING_URL, { waitUntil: "domcontentloaded" });
+  await page.waitForLoadState("networkidle").catch(() => {});
 
-  if (!tokenJson?.data?.ota_jwt) {
+  // 2️⃣ Token
+  console.log("🔐 Token alınıyor...");
+  const tokenRes = await context.request.get(STARTUP_URL);
+  const tokenJson = await tokenRes.json();
+
+  const jwt = tokenJson?.data?.ota_jwt;
+  if (!jwt) {
     throw new Error("ota_jwt alınamadı");
   }
+  const bearer = `Bearer ${jwt}`;
 
-  const bearer = `Bearer ${tokenJson.data.ota_jwt}`;
-
+  // 3️⃣ Termin
   console.log("📅 Termin kontrol ediliyor...");
-  const terminResponse = await page.request.get(TERMIN_URL, {
+  const terminRes = await context.request.get(TERMIN_URL, {
     headers: {
       Authorization: bearer,
       Accept: "application/json",
     },
   });
-
-  const terminJson = await terminResponse.json();
+  const terminJson = await terminRes.json();
   console.log("Response:", terminJson);
 
-  if (terminJson?.code === 3 && terminJson?.data?.termin !== null) {
-  console.log("✅ GERÇEK termin bulundu");
-  // await sendEmail(terminJson);
-} else {
-  console.log(
-    `⏳ Termin yok | code=${terminJson.code} msg=${terminJson.msg}`
-  );
-}
+  // 🚫 233 → asla email
+  const terminVar =
+    terminJson?.code === 3 &&
+    terminJson?.data &&
+    terminJson.data.termin !== null;
+
+  if (terminVar) {
+    console.log("✅ GERÇEK termin bulundu");
+    await sendEmail(terminJson);
+  } else {
+    console.log(
+      `⏳ Termin yok | code=${terminJson?.code} msg=${terminJson?.msg}`
+    );
+  }
 
   await browser.close();
 })().catch((err) => {
-  console.error("🔥 HATA:", err.message);
+  console.error("🔥 HATA:", err);
   process.exit(1);
 });
