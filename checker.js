@@ -1,27 +1,49 @@
 import { chromium } from "playwright";
+import nodemailer from "nodemailer";
 
 /* =========================
-   WHATSAPP (TextMeBot)
+   MAIL (BREVO SMTP)
 ========================= */
-async function sendWhatsApp(message) {
-  const phone = process.env.WHATSAPP_PHONE;
-  const apikey = process.env.TEXTMEBOT_APIKEY;
+async function sendMail(subject, text) {
+  const {
+    SMTP_HOST,
+    SMTP_PORT,
+    SMTP_USER,
+    SMTP_PASS,
+    MAIL_TO,
+    MAIL_FROM,
+  } = process.env;
 
-  if (!phone || !apikey) {
-    console.log("⚠️ WhatsApp ayarları eksik");
+  if (
+    !SMTP_HOST ||
+    !SMTP_PORT ||
+    !SMTP_USER ||
+    !SMTP_PASS ||
+    !MAIL_TO ||
+    !MAIL_FROM
+  ) {
+    console.log("⚠️ Mail ayarları eksik");
     return;
   }
 
-  const url =
-    `https://api.textmebot.com/send.php` +
-    `?recipient=${phone}` +
-    `&apikey=${apikey}` +
-    `&text=${encodeURIComponent(message)}`;
+  const transporter = nodemailer.createTransport({
+    host: SMTP_HOST,
+    port: Number(SMTP_PORT),
+    secure: false,
+    auth: {
+      user: SMTP_USER,
+      pass: SMTP_PASS,
+    },
+  });
 
-  const res = await fetch(url);
-  const text = await res.text();
+  await transporter.sendMail({
+    from: MAIL_FROM,
+    to: MAIL_TO,
+    subject,
+    text,
+  });
 
-  console.log("📲 WhatsApp response:", text);
+  console.log("📧 Email gönderildi");
 }
 
 /* =========================
@@ -29,7 +51,7 @@ async function sendWhatsApp(message) {
 ========================= */
 (async () => {
   const browser = await chromium.launch({
-    headless: true, // локalde false yapabilirsin
+    headless: true, // lokal debug için false yapabilirsin
   });
 
   const context = await browser.newContext({
@@ -51,34 +73,33 @@ async function sendWhatsApp(message) {
     ========================= */
     console.log("🔘 Service seçiliyor (check_9_343)...");
 
-    const checkbox = page.locator("#check_9_343");
+    await page.waitForSelector("#check_9_343", { timeout: 30000 });
 
-    await checkbox.waitFor({ state: "attached" });
-
-    const ariaChecked = await checkbox.getAttribute("aria-checked");
-
-    if (ariaChecked !== "true") {
-      await page.evaluate(() => {
-        const cb = document.getElementById("check_9_343");
+    await page.evaluate(() => {
+      const cb = document.getElementById("check_9_343");
+      if (cb && !cb.checked) {
         cb.checked = true;
         cb.setAttribute("aria-checked", "true");
         cb.dispatchEvent(new Event("change", { bubbles: true }));
-      });
-    }
+      }
+    });
 
-    console.log(
-      "aria-checked =",
-      await checkbox.getAttribute("aria-checked")
+    const ariaChecked = await page.getAttribute(
+      "#check_9_343",
+      "aria-checked"
     );
+    console.log("aria-checked =", ariaChecked);
 
     /* =========================
-       WEITER BUTTON
+       WEITER + TERMIN REQUEST
     ========================= */
     console.log("➡️ Weiter tıklanıyor, termin isteği bekleniyor...");
 
     const [terminResponse] = await Promise.all([
       page.waitForResponse((res) =>
-        res.url().includes("brick_ota_termin_getFirstAvailableTimeslot")
+        res.url().includes(
+          "brick_ota_termin_getFirstAvailableTimeslot"
+        )
       ),
       page.click("button.btn_formcontroll_next"),
     ]);
@@ -94,21 +115,19 @@ async function sendWhatsApp(message) {
     const termin = response?.data?.termin;
     const code = response?.code;
 
-    if (termin || code !== 3) {
+    if (termin || code == 3) {
       console.log("🎉 TERMIN BULUNDU!");
 
-      await sendWhatsApp(
-        `🎉 TERMIN BULUNDU!\n\n` +
-          `Tarih: ${termin.date}\n` +
-          `Saat: ${termin.time}\n\n` +
-          `👉 https://stuttgart.konsentas.de/form/3/?signup_new=1`
+      await sendMail(
+        "🎉 Termin Bulundu!",
+        `Stuttgart Führerscheinstelle için termin bulundu!\n\n` +
+          `📅 Tarih: ${termin.date}\n` +
+          `⏰ Saat: ${termin.time}\n\n` +
+          `👉 Hemen gir:\n` +
+          `https://stuttgart.konsentas.de/form/3/?signup_new=1`
       );
     } else {
       console.log("⏳ Henüz termin yok");
-      await sendWhatsApp(
-        `🎉 TERMIN YOK !\n\n` +         
-          `👉 https://stuttgart.konsentas.de/form/3/?signup_new=1`
-      );
     }
   } catch (err) {
     console.error("🔥 HATA:", err);
