@@ -119,9 +119,8 @@ async function sendMail(subject, text) {
 
       await sendMail(
         "🎉 Termin Bulundu!",
-        `Stuttgart Führerscheinstelle için termin bulundu!\n\n` +
-          `📅 Tarih: ${termin.date}\n` +
-          `⏰ Saat: ${termin.time}\n\n` +
+        `Stuttgart Führerscheinstelle için termin bulundu!\n\n` +          
+          `⏰ Oğuzzzz, hemen siteye gir, termin al!!! \n\n` +
           `👉 https://stuttgart.konsentas.de/form/3/?signup_new=1`
       );
     } else {
