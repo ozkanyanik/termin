@@ -113,8 +113,8 @@ async function sendMail(subject, text) {
        TERMIN KONTROLÜ
     ========================= */
     const termin = response?.data?.termin;
-
-    if (termin) {
+    const code = response?.code;
+    if (termin || code === 3) {
       console.log("🎉 TERMIN BULUNDU!");
 
       await sendMail(
