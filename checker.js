@@ -114,7 +114,7 @@ async function sendMail(subject, text) {
     ========================= */
     const termin = response?.data?.termin;
     const code = response?.code;
-    if (termin || code === 3) {
+    if (termin || code !== 3) {
       console.log("🎉 TERMIN BULUNDU!");
 
       await sendMail(
