@@ -50,15 +50,8 @@ async function sendMail(subject, text) {
    MAIN
 ========================= */
 (async () => {
-  const browser = await chromium.launch({
-    headless: true, // lokal debug için false yapabilirsin
-  });
-
-  const context = await browser.newContext({
-    userAgent:
-      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36",
-  });
-
+  const browser = await chromium.launch({ headless: true });
+  const context = await browser.newContext();
   const page = await context.newPage();
 
   try {
@@ -69,25 +62,28 @@ async function sendMail(subject, text) {
     );
 
     /* =========================
-       SERVICE CHECKBOX
+       SERVICE SELECT (HIDDEN)
     ========================= */
     console.log("🔘 Service seçiliyor (check_9_343)...");
 
-    await page.waitForSelector("#check_9_343", { timeout: 30000 });
+    // Checkbox DOM'da var mı diye bekle (VISIBLE DEĞİL)
+    await page.waitForFunction(() =>
+      document.getElementById("check_9_343")
+    );
 
     await page.evaluate(() => {
       const cb = document.getElementById("check_9_343");
-      if (cb && !cb.checked) {
-        cb.checked = true;
-        cb.setAttribute("aria-checked", "true");
-        cb.dispatchEvent(new Event("change", { bubbles: true }));
-      }
+      if (!cb) throw new Error("Checkbox bulunamadı");
+
+      cb.checked = true;
+      cb.setAttribute("aria-checked", "true");
+      cb.dispatchEvent(new Event("change", { bubbles: true }));
     });
 
-    const ariaChecked = await page.getAttribute(
-      "#check_9_343",
-      "aria-checked"
+    const ariaChecked = await page.evaluate(() =>
+      document.getElementById("check_9_343").getAttribute("aria-checked")
     );
+
     console.log("aria-checked =", ariaChecked);
 
     /* =========================
@@ -101,7 +97,11 @@ async function sendMail(subject, text) {
           "brick_ota_termin_getFirstAvailableTimeslot"
         )
       ),
-      page.click("button.btn_formcontroll_next"),
+      page.evaluate(() => {
+        document
+          .querySelector("button.btn_formcontroll_next")
+          .click();
+      }),
     ]);
 
     const response = await terminResponse.json();
@@ -113,9 +113,8 @@ async function sendMail(subject, text) {
        TERMIN KONTROLÜ
     ========================= */
     const termin = response?.data?.termin;
-    const code = response?.code;
 
-    if (termin || code == 3) {
+    if (termin) {
       console.log("🎉 TERMIN BULUNDU!");
 
       await sendMail(
@@ -123,8 +122,7 @@ async function sendMail(subject, text) {
         `Stuttgart Führerscheinstelle için termin bulundu!\n\n` +
           `📅 Tarih: ${termin.date}\n` +
           `⏰ Saat: ${termin.time}\n\n` +
-          `👉 Hemen gir:\n` +
-          `https://stuttgart.konsentas.de/form/3/?signup_new=1`
+          `👉 https://stuttgart.konsentas.de/form/3/?signup_new=1`
       );
     } else {
       console.log("⏳ Henüz termin yok");
