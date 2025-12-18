@@ -19,22 +19,20 @@ const BOOKING_URL =
     console.log("🌐 Sayfa açılıyor...");
     await page.goto(BOOKING_URL, { waitUntil: "domcontentloaded" });
 
-    // 2️⃣ KVKK / onay checkbox
-    console.log("☑️ Onay checkbox işaretleniyor...");
-    await page.waitForSelector('input[type="checkbox"]');
-    await page.check('input[type="checkbox"]');
+    // 2️⃣ Service seçimi (aria-checked tetiklenir)
+    console.log("🔘 Service seçiliyor (check_9_343)...");
+    await page.waitForSelector('label[for="check_9_343"]');
+    await page.click('label[for="check_9_343"]', { force: true });
 
-    // 3️⃣ Weiter
-    console.log("➡️ Weiter (1)...");
-    await page.click("button.btn_formcontroll_next");
+    // (opsiyonel doğrulama)
+    const ariaChecked = await page.getAttribute(
+      'label[for="check_9_343"]',
+      "aria-checked"
+    );
+    console.log("aria-checked =", ariaChecked);
 
-    // 4️⃣ Service seçimi (9_343)
-    console.log("🔘 Service seçiliyor (9_343)...");
-    await page.waitForSelector("#check_9_343");
-    await page.check("#check_9_343", { force: true });
-
-    // 5️⃣ Weiter + termin isteğini yakala
-    console.log("📅 Termin endpoint bekleniyor...");
+    // 3️⃣ Weiter + termin isteğini yakala
+    console.log("➡️ Weiter tıklanıyor, termin isteği bekleniyor...");
     const [terminResponse] = await Promise.all([
       page.waitForResponse(
         (resp) =>
