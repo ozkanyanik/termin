@@ -25,6 +25,8 @@ jobs:
       - name: Run checker
         run: node checker.js
         env:
+          WHATSAPP_PHONE: ${{ secrets.WHATSAPP_PHONE }}
+          TEXTMEBOT_APIKEY: ${{ secrets.TEXTMEBOT_APIKEY }}
           SMTP_HOST: ${{ secrets.SMTP_HOST }}
           SMTP_PORT: ${{ secrets.SMTP_PORT }}
           SMTP_USER: ${{ secrets.SMTP_USER }}
