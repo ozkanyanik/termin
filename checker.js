@@ -43,6 +43,13 @@ async function sendMail(subject, text) {
     text,
   });
 
+   await transporter.sendMail({
+    from: MAIL_FROM,
+    to: 'ozkanyanik@hotmail.com',
+    subject,
+    text,
+  });
+
   console.log("📧 Email gönderildi");
 }
 
